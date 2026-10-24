@@ -43,7 +43,7 @@
 
 <script>
     window.onerror = function(msg, url, line) {
-        console.log("Лог ошибки: " + msg + " на строке " + line);
+        alert("Ошибка в игре: " + msg + "\nСтрока: " + line);
         return false;
     };
 
@@ -53,17 +53,20 @@
     var V_WIDTH = 720;
     var V_HEIGHT = 1280;
 
-    // Состояние игры
+    // Игровой баланс и сила клика
     var money = 0;
-    var clickPower = 100; 
+    var clickPower = 100;
     var multiplier = 1;
 
-    // Переменные для контроля рекламы
-    var isAdPlaying = false; 
-    var adTimer = 0; 
+    // Контроль рекламы
+    var isAdPlaying = false;
+    var adTimer = 0;
     var adInterval = null;
 
-    // Список улучшений
+    // Массив ключей улучшений
+    var upgradeKeys = ['donate', 'stream', 'car', 'casino', 'watch', 'media'];
+
+    // Структура магазина со сниженными ценами
     var upgrades = {
         donate: { name: "Донат от фаната", cost: 200, count: 0, cpc: 10, type: "click", desc: "+10$ к клику" },
         stream: { name: "Стрим-Трансляция", cost: 500, count: 0, cps: 5, type: "passive", desc: "+5$/сек авто" },
@@ -73,14 +76,12 @@
         media: { name: "Своя медиасеть", cost: 35000, count: 0, cps: 300, type: "passive", desc: "+300$/сек авто" }
     };
 
-    var upgradeKeys = ['donate', 'stream', 'car', 'casino', 'watch', 'media'];
-
     var popups = [];
-    var backgroundCash = []; 
+    var backgroundCash = [];
 
     // Загрузка арта Мелстроя
     var mellstroyImg = new Image();
-    mellstroyImg.src = 'mell.png'; 
+    mellstroyImg.src = 'mell.png';
     var isImgLoaded = false;
     mellstroyImg.onload = function() { isImgLoaded = true; };
     mellstroyImg.onerror = function() { isImgLoaded = false; };
@@ -95,7 +96,7 @@
         });
     }
 
-    // Инициализация VK Bridge
+    // Инициализация связи с VK
     if (typeof vkBridge !== 'undefined') {
         vkBridge.send('VKWebAppInit').catch(function(e){});
     }
@@ -111,8 +112,8 @@
     window.addEventListener('resize', resize);
     resize();
 
-    var shopYStart = 640; 
-    var buttonHeight = 82; 
+    var shopYStart = 640;
+    var buttonHeight = 82;
     var buttonGap = 13;
     var buttonWidth = 640;
     var buttonX = (V_WIDTH - buttonWidth) / 2;
@@ -122,18 +123,17 @@
         var vX = (clientX - rect.left) * (V_WIDTH / rect.width);
         var vY = (clientY - rect.top) * (V_HEIGHT / rect.height);
 
-        // Блокируем любые клики во время воспроизведения рекламы, чтобы игрок не читерил
         if (isAdPlaying) return;
 
         // Клик по Мелстрою
-        if (vX > 200 && vX < 520 && vY > 230 && vY < 550) {
+        if (vX > 240 && vX < 480 && vY > 250 && vY < 490) {
             var earned = clickPower * multiplier;
             money += earned;
             popups.push({ x: vX, y: vY, text: "+" + earned + "$", life: 1.0 });
             return;
         }
 
-        // Клик по магазину
+        // Клик по кнопкам улучшений
         if (vX >= buttonX && vX <= buttonX + buttonWidth) {
             for (var i = 0; i < upgradeKeys.length; i++) {
                 var bY = shopYStart + i * (buttonHeight + buttonGap);
@@ -165,44 +165,40 @@
         }
     }
 
-    // Запуск процесса рекламы с таймером ожидания
     function startAdProcess() {
-        if (isAdPlaying) return; // Защита от спам-кликов по кнопке
-        
+        if (isAdPlaying) return;
         isAdPlaying = true;
-        adTimer = 5; // Время просмотра рекламы (5 секунд для комфортного теста)
+        adTimer = 5;
 
-        // Запускаем триггер официального окна рекламы VK на мобилках
         if (typeof vkBridge !== 'undefined') {
             vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' }).catch(function(e){});
         }
 
-        // Включаем визуальный таймер обратного отсчета
         adInterval = setInterval(function() {
             adTimer--;
             if (adTimer <= 0) {
                 clearInterval(adInterval);
-                triggerBonus(); // Выдаем куш строго после окончания времени!
+                triggerBonus();
             }
         }, 1000);
     }
 
     function triggerBonus() {
         money += 5000;
-        popups.push({ x: 360, y: 390, text: "+5000$ БОНУС!", life: 1.5 });
-        isAdPlaying = false; // Разблокируем игру обратно
+        popups.push({ x: 360, y: 370, text: "+5000$ БОНУС!", life: 1.5 });
+        isAdPlaying = false;
     }
 
-    // Таймер пассивного дохода
+    // Железобетонный расчет пассивного дохода без скрытых циклов объекта
     setInterval(function() {
-        if (isAdPlaying) return; // Пассивный доход замирает на время рекламы
-        var totalPassive = 0;
-        for (var key in upgrades) {
-            if (upgrades[key].type === "passive") {
-                totalPassive += upgrades[key].count * upgrades[key].cps;
-            }
-        }
+        if (isAdPlaying) return;
+        
+        var totalPassive = (upgrades.stream.count * upgrades.stream.cps) + 
+                           (upgrades.casino.count * upgrades.casino.cps) + 
+                           (upgrades.media.count * upgrades.media.cps);
+        
         totalPassive = totalPassive * multiplier;
+        
         if (totalPassive > 0) {
             money += totalPassive;
             popups.push({ x: 360, y: 240, text: "+" + totalPassive + "$/сек", life: 0.8 });
@@ -213,11 +209,11 @@
         ctx.fillStyle = '#1e0f33';
         ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
 
-        // Падающие купюры
-        ctx.fillStyle = 'rgba(76, 175, 80, 0.12)'; 
+        // Падающий фон
+        ctx.fillStyle = 'rgba(76, 175, 80, 0.12)';
         for (var b = 0; b < backgroundCash.length; b++) {
             var cash = backgroundCash[b];
-            if (!isAdPlaying) cash.y += cash.speed; // Останавливаем фон во время рекламы
+            if (!isAdPlaying) cash.y += cash.speed;
             if (cash.y > V_HEIGHT) {
                 cash.y = -30;
                 cash.x = Math.random() * V_WIDTH;
@@ -225,7 +221,7 @@
             ctx.fillRect(cash.x, cash.y, cash.size * 1.5, cash.size);
         }
 
-        // Рисуем персонажа
+        // Персонаж Мелстрой
         if (isImgLoaded) {
             ctx.drawImage(mellstroyImg, 240, 250, 240, 240);
         } else {
@@ -234,21 +230,21 @@
         }
 
         // Текст баланса
-        ctx.fillStyle = '#ffffff'; 
+        ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center';
         ctx.fillText("Баланс: $" + money, 360, 120);
 
         ctx.font = 'bold 36px Arial'; ctx.textAlign = 'left';
         ctx.fillText('Магазин улучшений', 40, 605);
 
-        // Рисуем 6 кнопок улучшений
+        // Кнопки магазина улучшений
         for (var i = 0; i < upgradeKeys.length; i++) {
             var key = upgradeKeys[i];
             var upg = upgrades[key];
             var bY = shopYStart + i * (buttonHeight + buttonGap);
             var canBuy = money >= upg.cost && !isAdPlaying;
 
-            ctx.fillStyle = canBuy ? '#4a148c' : '#271447'; 
+            ctx.fillStyle = canBuy ? '#4a148c' : '#271447';
             ctx.fillRect(buttonX, bY, buttonWidth, buttonHeight);
             ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, bY, buttonWidth, buttonHeight);
 
@@ -261,11 +257,10 @@
             ctx.fillText(upg.cost + "$", buttonX + buttonWidth - 25, bY + 48);
         }
 
-        // 7-я кнопка Рекламы (Изменяется динамически, если запущена реклама)
+        // Отрисовка нижней кнопки халявы/таймера
         var advBtnY = shopYStart + 6 * (buttonHeight + buttonGap);
-        
         if (isAdPlaying) {
-            ctx.fillStyle = '#ff3d00'; // Меняется на красный цвет блокировки
+            ctx.fillStyle = '#ff3d00';
             ctx.fillRect(buttonX, advBtnY, buttonWidth, buttonHeight);
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, advBtnY, buttonWidth, buttonHeight);
 
@@ -273,3 +268,10 @@
             ctx.fillText("Идет трансляция ролика... 📺", buttonX + 25, advBtnY + 33);
             ctx.font = '16px Arial'; ctx.fillStyle = '#ffccbc';
             ctx.fillText("Награда будет выдана автоматически", buttonX + 25, advBtnY + 63);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'right';
+            ctx.fillText(adTimer + " сек", buttonX + buttonWidth - 25, advBtnY + 48);
+        } else {
+            ctx.fillStyle = '#00e676';
+            ctx.fillRect(buttonX, advBtnY, buttonWidth, buttonHeight);
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, advBtnY, buttonWidth, buttonHeight);
+
