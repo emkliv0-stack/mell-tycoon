@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mellstroy Money Tycoon</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #00ff00;
+            font-family: 'Arial', sans-serif;
+        }
+        #gameContainer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            background-color: #00ff00;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            max-width: 100%;
+            max-height: 100%;
+        }
+    </style>
+    <!-- Подключаем официальную библиотеку VK Bridge SDK -->
+    <script src="https://unpkg.com"></script>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+    var canvas = document.getElementById('gameCanvas');
+    var ctx = canvas.getContext('2d');
+
+    var V_WIDTH = 720;
+    var V_HEIGHT = 1280;
+
+    // Игровой баланс и сила клика
+    var money = 0;
+    var clickPower = 100;
+    var multiplier = 1;
+
+    // Уровни и цены улучшений
+    var streamCount = 0;
+    var streamCost = 500;
+    var donateCount = 0;
+    var donateCost = 2000;
+    var danceCount = 0;
+    var danceCost = 10000;
+
+    var popups = [];
+
+    // Загрузка сочного арта Мелстроя из сети
+    var mellstroyImg = new Image();
+    mellstroyImg.src = 'https://postimg.cc'; 
+    var isImgLoaded = false;
+    mellstroyImg.onload = function() { isImgLoaded = true; };
+    mellstroyImg.onerror = function() { isImgLoaded = false; };
+
+    // Инициализация связи с серверами ВКонтакте
+    if (typeof vkBridge !== 'undefined') {
+        vkBridge.send('VKWebAppInit')
+            .then(function(data) { console.log('VK Bridge успешно запущен'); })
+            .catch(function(error) { console.log('Ошибка запуска VK Bridge:', error); });
+    }
+
+    function resize() {
+        var windowWidth = window.innerWidth;
+        var windowHeight = window.innerHeight;
+        var scale = Math.min(windowWidth / V_WIDTH, windowHeight / V_HEIGHT);
+        canvas.width = V_WIDTH * scale;
+        canvas.height = V_HEIGHT * scale;
+        ctx.scale(scale, scale);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Логика нажатий по экрану
+    function handleInGameClick(clientX, clientY) {
+        var rect = canvas.getBoundingClientRect();
+        var vX = (clientX - rect.left) * (V_WIDTH / rect.width);
+        var vY = (clientY - rect.top) * (V_HEIGHT / rect.height);
+
+        // 1. Клик по Мелстрою (центральная область)
+        if (vX > 200 && vX < 520 && vY > 300 && vY < 620) {
+            var earned = clickPower * multiplier;
+            money += earned;
+            popups.push({ x: vX, y: vY, text: "+" + earned + "$", life: 1.0 });
+            return;
+        }
+
+        // 2. Клик по кнопкам Магазина улучшений
+        if (vX >= 40 && vX <= 680) {
+            // Кнопка 1: Стрим-Трансляция
+            if (vY >= 700 && vY <= 810) {
+                if (money >= streamCost) {
+                    money -= streamCost;
+                    streamCount++;
+                    streamCost = Math.floor(streamCost * 1.5);
+                }
+            }
+            // Кнопка 2: Донат от подписчика
+            if (vY >= 830 && vY <= 940) {
+                if (money >= donateCost) {
+                    money -= donateCost;
+                    donateCount++;
+                    clickPower += 50;
+                    donateCost = Math.floor(donateCost * 1.5);
+                }
+            }
+            // Кнопка 3: Легендарный танец
+            if (vY >= 960 && vY <= 1070) {
+                if (money >= danceCost && danceCount < 1) {
+                    money -= danceCost;
+                    danceCount++;
+                    multiplier *= 2;
+                }
+            }
+            // Кнопка 4: Просмотр рекламы VK за награду
+            if (vY >= 1090 && vY <= 1200) {
+                showVkVideoAd();
+            }
+        }
+    }
+
+    window.addEventListener('mousedown', function(e) { handleInGameClick(e.clientX, e.clientY); });
+
+    // Функция запуска настоящей видеорекламы VK
+    function showVkVideoAd() {
+        if (typeof vkBridge !== 'undefined') {
+            vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' })
+                .then(function(data) {
+                    if (data.result) {
+                        // Если реклама досмотрена — выдаем бонус
+                        triggerBonus();
+                    }
+                })
+                .catch(function(error) {
+                    // Если запущен локально на ПК — халява начислится автоматически
+                    triggerBonus();
+                });
+        } else {
+            triggerBonus();
+        }
+    }
+
+    function triggerBonus() {
+        money += 5000;
+        popups.push({ x: 360, y: 460, text: "+5000$ БОНУС!", life: 1.5 });
+    }
+
+    // Таймер пассивного ежесекундного дохода
+    setInterval(function() {
+        var passive = streamCount * 5 * multiplier;
+        if (passive > 0) {
+            money += passive;
+            popups.push({ x: 360, y: 300, text: "+" + passive + "$/сек", life: 0.8 });
+        }
+    }, 1000);
+
+    // Главный цикл графического движка игры (Рендеринг)
+    function update() {
+        // Очистка экрана зеленым хромакеем
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+        // Рисование главного персонажа
+        if (isImgLoaded) {
+            ctx.drawImage(mellstroyImg, 220, 320, 280, 280);
+        } else {
+            // Подстраховочный вариант, если нет интернета
+            ctx.fillStyle = '#1e88e5';
+            ctx.beginPath(); ctx.arc(360, 460, 120, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffb74d';
+            ctx.beginPath(); ctx.arc(360, 380, 65, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#000000';
+            ctx.beginPath(); ctx.arc(340, 370, 8, 0, Math.PI * 2); ctx.arc(380, 370, 8, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Рендеринг интерфейса баланса
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 55px Arial'; ctx.textAlign = 'center';
+        ctx.fillText("Баланс: $" + money, 360, 140);
+        ctx.font = 'bold 42px Arial'; ctx.textAlign = 'left';
+        ctx.fillText('Магазин улучшений', 40, 675);
+
+        // Кнопка Улучшения 1
+        ctx.fillStyle = (money >= streamCost) ? '#8d6e63' : '#bcaaa4';
+        ctx.fillRect(40, 700, 640, 110);
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial';
+        ctx.fillText("Стрим-Трансляция (Лвл " + streamCount + ")", 70, 745);
+        ctx.font = '18px Arial'; ctx.fillText("+5$/сек автоматически", 70, 780);
+        ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'right';
+        ctx.fillText(streamCost + "$", 650, 763);
+
+        // Кнопка Улучшения 2
+        ctx.fillStyle = (money >= donateCost) ? '#8d6e63' : '#bcaaa4'; ctx.textAlign = 'left';
+        ctx.fillRect(40, 830, 640, 110);
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial';
+        ctx.fillText("Донат от подписчика (Лвл " + donateCount + ")", 70, 875);
+        ctx.font = '18px Arial'; ctx.fillText("+50$ к силе клика", 70, 910);
+        ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'right';
+        ctx.fillText(donateCost + "$", 650, 893);
+
+        // Кнопка Улучшения 3
+        var maxDance = (danceCount >= 1);
+        ctx.fillStyle = maxDance ? '#757575' : ((money >= danceCost) ? '#8d6e63' : '#bcaaa4'); ctx.textAlign = 'left';
+        ctx.fillRect(40, 960, 640, 110);
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial';
+        ctx.fillText(maxDance ? "Легендарный танец [MAX]" : "Легендарный танец", 70, 1005);
+        ctx.font = '18px Arial'; ctx.fillText("Удваивает весь доход (x2)", 70, 1040);
+        if (!maxDance) {
+            ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'right';
+            ctx.fillText(danceCost + "$", 650, 1023);
+        }
+
+        // Кнопка Рекламы 4
+        ctx.fillStyle = '#388e3c'; ctx.textAlign = 'left';
+        ctx.fillRect(40, 1090, 640, 110);
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial';
+        ctx.fillText("Халявный Донат 🎥", 70, 1135);
+        ctx.font = '18px Arial'; ctx.fillText("Посмотри видео — получи куш сразу", 70, 1170);
+        ctx.fillStyle = '#fff59d'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'right';
+        ctx.fillText("+5000$", 650, 1153);
+
+        // Отрисовка всплывающего текста циферок клика
+        for (var i = popups.length - 1; i >= 0; i--) {
+            var pop = popups[i]; pop.y -= 2; pop.life -= 0.02;
+            if(pop.life <= 0) { popups.splice(i, 1); continue; }
+            ctx.save(); ctx.globalAlpha = pop.life; ctx.fillStyle = '#1b5e20'; ctx.font = 'bold 36px Arial'; ctx.textAlign = 'center';
+            ctx.fillText(pop.text, pop.x, pop.y); ctx.restore();
+        }
+
+        requestAnimationFrame(update);
+    }
+
+    requestAnimationFrame(update);
+</script>
+
+</body>
+</html>
