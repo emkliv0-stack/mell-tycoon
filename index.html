@@ -42,8 +42,9 @@
 </div>
 
 <script>
+    // Если скрипт все равно упадет, это окно скажет точную причину
     window.onerror = function(msg, url, line) {
-        alert("Ошибка в игре: " + msg + "\nСтрока: " + line);
+        alert("Датчик зафиксировал ошибку: " + msg + "\nСтрока: " + line);
         return false;
     };
 
@@ -53,37 +54,36 @@
     var V_WIDTH = 720;
     var V_HEIGHT = 1280;
 
+    // Игровой баланс и сила клика
     var money = 0;
     var clickPower = 100;
     var multiplier = 1;
 
+    // Контроль рекламы
     var isAdPlaying = false;
     var adTimer = 0;
     var adInterval = null;
 
-    var upgradeKeys = ['donate', 'stream', 'car', 'casino', 'watch', 'media'];
-
-    var upgrades = {
-        donate: { name: "Донат от фаната", cost: 200, count: 0, cpc: 10, type: "click", desc: "+10$ к клику" },
-        stream: { name: "Стрим-Трансляция", cost: 500, count: 0, cps: 5, type: "passive", desc: "+5$/сек авто" },
-        car: { name: "Розыгрыш тачки", cost: 1500, count: 0, cpc: 80, type: "click", desc: "+80$ к клику" },
-        casino: { name: "Реклама казино", cost: 4000, count: 0, cps: 40, type: "passive", desc: "+40$/сек авто" },
-        watch: { name: "Золотые часы", cost: 12000, count: 0, cpc: 500, type: "click", desc: "+500$ к клику" },
-        media: { name: "Своя медиасеть", cost: 35000, count: 0, cps: 300, type: "passive", desc: "+300$/сек авто" }
-    };
-
-    var danceCount = 0;
-    var danceCost = 10000;
+    // Все улучшения переведены в простейшие независимые переменные
+    var lvlDonate = 0;   var costDonate = 200;
+    var lvlStream = 0;   var costStream = 500;
+    var lvlCar = 0;      var costCar = 1500;
+    var lvlCasino = 0;   var costCasino = 4000;
+    var lvlWatch = 0;    var costWatch = 12000;
+    var lvlMedia = 0;    var costMedia = 35000;
+    var danceCount = 0;  var danceCost = 10000;
 
     var popups = [];
     var backgroundCash = [];
 
+    // Загрузка арта Мелстроя из твоих файлов на GitHub
     var mellstroyImg = new Image();
     mellstroyImg.src = 'mell.png';
     var isImgLoaded = false;
     mellstroyImg.onload = function() { isImgLoaded = true; };
     mellstroyImg.onerror = function() { isImgLoaded = false; };
 
+    // Создаем падающие на фоне купюры
     for (var i = 0; i < 20; i++) {
         backgroundCash.push({
             x: Math.random() * V_WIDTH,
@@ -109,8 +109,8 @@
     resize();
 
     var shopYStart = 640;
-    var buttonHeight = 76; 
-    var buttonGap = 10;
+    var buttonHeight = 72; 
+    var buttonGap = 9;
     var buttonWidth = 640;
     var buttonX = (V_WIDTH - buttonWidth) / 2;
 
@@ -121,8 +121,8 @@
 
         if (isAdPlaying) return;
 
-        // Клик по Мелстрою
-        if (vX > 240 && vX < 480 && vY > 230 && vY < 490) {
+        // Клик по Мелстрою (центральная зона)
+        if (vX > 220 && vX < 500 && vY > 240 && vY < 500) {
             var earned = clickPower * multiplier;
             money += earned;
             popups.push({ x: vX, y: vY, text: "+" + earned + "$", life: 1.0 });
@@ -130,47 +130,42 @@
         }
 
         if (vX >= buttonX && vX <= buttonX + buttonWidth) {
-            // Кнопки магазина
-            for (var i = 0; i < upgradeKeys.length; i++) {
-                var bY = shopYStart + i * (buttonHeight + buttonGap);
-                if (vY >= bY && vY <= bY + buttonHeight) {
-                    buyUpgrade(upgradeKeys[i]);
-                    return;
-                }
+            // Кнопка 1: Донат от фаната
+            if (vY >= shopYStart && vY <= shopYStart + buttonHeight) {
+                if (money >= costDonate) { money -= costDonate; lvlDonate++; clickPower += 10; costDonate = Math.floor(costDonate * 1.4); }
             }
-
-            // Танец
-            var danceBtnY = shopYStart + 6 * (buttonHeight + buttonGap);
-            if (vY >= danceBtnY && vY <= danceBtnY + buttonHeight) {
-                if (money >= danceCost && danceCount < 1) {
-                    money -= danceCost;
-                    danceCount++;
-                    multiplier *= 2;
-                }
-                return;
+            // Кнопка 2: Стрим
+            if (vY >= shopYStart + 1*(buttonHeight+buttonGap) && vY <= shopYStart + 1*(buttonHeight+buttonGap) + buttonHeight) {
+                if (money >= costStream) { money -= costStream; lvlStream++; costStream = Math.floor(costStream * 1.4); }
             }
-
-            // Кнопка рекламы
-            var advBtnY = shopYStart + 7 * (buttonHeight + buttonGap);
-            if (vY >= advBtnY && vY <= advBtnY + buttonHeight) {
+            // Кнопка 3: Тачка
+            if (vY >= shopYStart + 2*(buttonHeight+buttonGap) && vY <= shopYStart + 2*(buttonHeight+buttonGap) + buttonHeight) {
+                if (money >= costCar) { money -= costCar; lvlCar++; clickPower += 80; costCar = Math.floor(costCar * 1.4); }
+            }
+            // Кнопка 4: Казино
+            if (vY >= shopYStart + 3*(buttonHeight+buttonGap) && vY <= shopYStart + 3*(buttonHeight+buttonGap) + buttonHeight) {
+                if (money >= costCasino) { money -= costCasino; lvlCasino++; costCasino = Math.floor(costCasino * 1.4); }
+            }
+            // Кнопка 5: Часы
+            if (vY >= shopYStart + 4*(buttonHeight+buttonGap) && vY <= shopYStart + 4*(buttonHeight+buttonGap) + buttonHeight) {
+                if (money >= costWatch) { money -= costWatch; lvlWatch++; clickPower += 500; costWatch = Math.floor(costWatch * 1.4); }
+            }
+            // Кнопка 6: Медиасеть
+            if (vY >= shopYStart + 5*(buttonHeight+buttonGap) && vY <= shopYStart + 5*(buttonHeight+buttonGap) + buttonHeight) {
+                if (money >= costMedia) { money -= costMedia; lvlMedia++; costMedia = Math.floor(costMedia * 1.4); }
+            }
+            // Кнопка 7: Легендарный танец
+            if (vY >= shopYStart + 6*(buttonHeight+buttonGap) && vY <= shopYStart + 6*(buttonHeight+buttonGap) + buttonHeight) {
+                if (money >= danceCost && danceCount < 1) { money -= danceCost; danceCount++; multiplier *= 2; }
+            }
+            // Кнопка 8: Реклама
+            if (vY >= shopYStart + 7*(buttonHeight+buttonGap) && vY <= shopYStart + 7*(buttonHeight+buttonGap) + buttonHeight) {
                 startAdProcess();
             }
         }
     }
 
     window.addEventListener('mousedown', function(e) { handleInGameClick(e.clientX, e.clientY); });
-
-    function buyUpgrade(key) {
-        var upg = upgrades[key];
-        if (money >= upg.cost) {
-            money -= upg.cost;
-            upg.count++;
-            if (upg.type === "click") {
-                clickPower += upg.cpc;
-            }
-            upg.cost = Math.floor(upg.cost * 1.4);
-        }
-    }
 
     function startAdProcess() {
         if (isAdPlaying) return;
@@ -196,11 +191,10 @@
         isAdPlaying = false;
     }
 
+    // Пассивный секундный доход
     setInterval(function() {
         if (isAdPlaying) return;
-        var totalPassive = (upgrades.stream.count * upgrades.stream.cps) + 
-                           (upgrades.casino.count * upgrades.casino.cps) + 
-                           (upgrades.media.count * upgrades.media.cps);
+        var totalPassive = (lvlStream * 5) + (lvlCasino * 40) + (lvlMedia * 300);
         totalPassive = totalPassive * multiplier;
         if (totalPassive > 0) {
             money += totalPassive;
@@ -208,71 +202,53 @@
         }
     }, 1000);
 
+    // Функция ручной отрисовки каждой кнопки без циклов
+    function drawBtn(y, name, desc, cost, count, color, hasMax) {
+        ctx.fillStyle = color;
+        ctx.fillRect(buttonX, y, buttonWidth, buttonHeight);
+        ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, y, buttonWidth, buttonHeight);
+
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left';
+        var title = hasMax ? name + " [MAX]" : name + " (Лвл " + count + ")";
+        ctx.fillText(title, buttonX + 20, y + 27);
+        ctx.font = '14px Arial'; ctx.fillStyle = '#b388ff';
+        ctx.fillText(desc, buttonX + 20, y + 54);
+
+        if (!hasMax) {
+            ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'right';
+            ctx.fillText(cost + "$", buttonX + buttonWidth - 20, y + 42);
+        }
+    }
+
     function update() {
         ctx.fillStyle = '#1e0f33';
         ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
 
+        // Падающие баксы
         ctx.fillStyle = 'rgba(76, 175, 80, 0.12)';
         for (var b = 0; b < backgroundCash.length; b++) {
             var cash = backgroundCash[b];
             if (!isAdPlaying) cash.y += cash.speed;
-            if (cash.y > V_HEIGHT) {
-                cash.y = -30;
-                cash.x = Math.random() * V_WIDTH;
-            }
+            if (cash.y > V_HEIGHT) { cash.y = -30; cash.x = Math.random() * V_WIDTH; }
             ctx.fillRect(cash.x, cash.y, cash.size * 1.5, cash.size);
         }
 
+        // Картинка Мелстроя
         if (isImgLoaded) {
-            ctx.drawImage(mellstroyImg, 240, 250, 240, 240);
+            ctx.drawImage(mellstroyImg, 240, 240, 240, 240);
         } else {
             ctx.fillStyle = '#1e88e5';
-            ctx.beginPath(); ctx.arc(360, 370, 100, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(360, 360, 100, 0, Math.PI * 2); ctx.fill();
         }
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center';
+        // Баланс
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center';
         ctx.fillText("Баланс: $" + money, 360, 120);
-
         ctx.font = 'bold 32px Arial'; ctx.textAlign = 'left';
-        ctx.fillText('Магазин улучшений', 40, 615);
+        ctx.fillText('Магазин улучшений', 40, 610);
 
-        // Рисуем 6 улучшений
-        for (var i = 0; i < upgradeKeys.length; i++) {
-            var key = upgradeKeys[i];
-            var upg = upgrades[key];
-            var bY = shopYStart + i * (buttonHeight + buttonGap);
-            var canBuy = money >= upg.cost && !isAdPlaying;
-
-            ctx.fillStyle = canBuy ? '#4a148c' : '#271447';
-            ctx.fillRect(buttonX, bY, buttonWidth, buttonHeight);
-            ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, bY, buttonWidth, buttonHeight);
-
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'left';
-            ctx.fillText(upg.name + " (Лвл " + upg.count + ")", buttonX + 25, bY + 30);
-            ctx.font = '15px Arial'; ctx.fillStyle = '#b388ff';
-            ctx.fillText(upg.desc, buttonX + 25, bY + 56);
-
-            ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'right';
-            ctx.fillText(upg.cost + "$", buttonX + buttonWidth - 25, bY + 44);
-        }
-
-        // Кнопка 7: Танец
-        var danceBtnY = shopYStart + 6 * (buttonHeight + buttonGap);
-        var canBuyDance = money >= danceCost && danceCount < 1 && !isAdPlaying;
-        ctx.fillStyle = (danceCount >= 1) ? '#212121' : (canBuyDance ? '#4a148c' : '#271447');
-        ctx.fillRect(buttonX, danceBtnY, buttonWidth, buttonHeight);
-        ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, danceBtnY, buttonWidth, buttonHeight);
-        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'left';
-        ctx.fillText((danceCount >= 1) ? "Легендарный танец [MAX]" : "Легендарный танец", buttonX + 25, danceBtnY + 30);
-        ctx.font = '15px Arial'; ctx.fillStyle = '#b388ff';
-        ctx.fillText("Удваивает весь доход (x2)", buttonX + 25, danceBtnY + 56);
-        if (danceCount < 1) {
-            ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'right';
-            ctx.fillText(danceCost + "$", buttonX + buttonWidth - 25, danceBtnY + 44);
-        }
-
-        // Кнопка 8: Реклама
-        var advBtnY = shopYStart + 7 * (buttonHeight + buttonGap);
-        if (isAdPlaying) {
-            ctx.fillStyle = '#ff3d00';
+        // Отрисовка всех 8 кнопок
+        var step = buttonHeight + buttonGap;
+        drawBtn(shopYStart, "Донат от фаната", "+10$ к клику", costDonate, lvlDonate, (money >= costDonate && !isAdPlaying) ? '#4a148c' : '#271447', false);
+        drawBtn(shopYStart + step, "Стрим-Трансляция", "+5$/сек автоматически", costStream, lvlStream, (money >= costStream && !isAdPlaying) ? '#4a148c' : '#271447', false);
+        drawBtn(shopYStart + step*2, "Розыгрыш тачки", "+80$ к клику", costCar, lvlCar, (money >= costCar && !isAdPlaying) ? '#4a148c' : '#271447', false);
