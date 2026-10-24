@@ -43,6 +43,11 @@
 </div>
 
 <script>
+    window.onerror = function(msg, url, line) {
+        console.log("Лог ошибки: " + msg + " на строке " + line);
+        return false;
+    };
+
     var canvas = document.getElementById('gameCanvas');
     var ctx = canvas.getContext('2d');
 
@@ -63,9 +68,9 @@
     var danceCost = 10000;
 
     var popups = [];
-    var backgroundCash = []; // Массив для падающих на фоне денег
+    var backgroundCash = []; 
 
-    // Загрузка сочного арта Мелстроя из твоих файлов на GitHub
+    // Загрузка арта Мелстроя из твоих файлов на GitHub
     var mellstroyImg = new Image();
     mellstroyImg.src = 'mell.png'; 
     var isImgLoaded = false;
@@ -83,7 +88,7 @@
         });
     }
 
-    // Инициализация связи с серверами ВКонтакте
+    // Инициализация VK Bridge
     if (typeof vkBridge !== 'undefined') {
         vkBridge.send('VKWebAppInit')
             .then(function(data) { console.log('VK Bridge успешно запущен'); })
@@ -101,13 +106,13 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // Логика нажатий по экрану
+    // Логика нажатий
     function handleInGameClick(clientX, clientY) {
         var rect = canvas.getBoundingClientRect();
         var vX = (clientX - rect.left) * (V_WIDTH / rect.width);
         var vY = (clientY - rect.top) * (V_HEIGHT / rect.height);
 
-        // 1. Клик по Мелстрою (центральная область)
+        // 1. Клик по Мелстрою
         if (vX > 200 && vX < 520 && vY > 300 && vY < 620) {
             var earned = clickPower * multiplier;
             money += earned;
@@ -117,7 +122,6 @@
 
         // 2. Клик по кнопкам Магазина улучшений
         if (vX >= 40 && vX <= 680) {
-            // Кнопка 1: Стрим-Трансляция
             if (vY >= 700 && vY <= 810) {
                 if (money >= streamCost) {
                     money -= streamCost;
@@ -125,7 +129,6 @@
                     streamCost = Math.floor(streamCost * 1.5);
                 }
             }
-            // Кнопка 2: Донат от подписчика
             if (vY >= 830 && vY <= 940) {
                 if (money >= donateCost) {
                     money -= donateCost;
@@ -134,7 +137,6 @@
                     donateCost = Math.floor(donateCost * 1.5);
                 }
             }
-            // Кнопка 3: Легендарный танец
             if (vY >= 960 && vY <= 1070) {
                 if (money >= danceCost && danceCount < 1) {
                     money -= danceCost;
@@ -142,7 +144,6 @@
                     multiplier *= 2;
                 }
             }
-            // Кнопка 4: Просмотр рекламы VK за награду
             if (vY >= 1090 && vY <= 1200) {
                 showVkVideoAd();
             }
@@ -179,23 +180,22 @@
         }
     }, 1000);
 
-    // Главный цикл графического движка игры (Рендеринг)
+    // Главный цикл рендеринга
     function update() {
-        // 1. Рисуем красивый неоновый градиентный фон
+        // Неоновый фон
         var gradient = ctx.createLinearGradient(0, 0, 0, V_HEIGHT);
-        gradient.addColorStop(0, '#2d0b5a'); // Темно-фиолетовый верх
-        gradient.addColorStop(1, '#0f021f'); // Почти черный низ
+        gradient.addColorStop(0, '#2d0b5a'); 
+        gradient.addColorStop(1, '#0f021f'); 
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
 
-        // 2. Рисуем и обновляем падающие на фоне баксы
-        ctx.fillStyle = 'rgba(46, 125, 50, 0.15)'; // Полупрозрачный зеленый цвет для заднего плана
+        // Падающие на фоне баксы
+        ctx.fillStyle = 'rgba(46, 125, 50, 0.15)'; 
         for (var b = 0; b < backgroundCash.length; b++) {
             var cash = backgroundCash[b];
             cash.y += cash.speed;
             cash.angle += 0.01;
             
-            // Если купюра улетела вниз, возвращаем её наверх
             if (cash.y > V_HEIGHT) {
                 cash.y = -30;
                 cash.x = Math.random() * V_WIDTH;
@@ -208,14 +208,9 @@
             ctx.restore();
         }
 
-        // 3. Рисование главного персонажа
+        // Рисование персонажа
         if (isImgLoaded) {
-            ctx.save();
-            // Красивое неоновое свечение вокруг Мелстроя
-            ctx.shadowBlur = 40;
-            ctx.shadowColor = '#00ffcc';
             ctx.drawImage(mellstroyImg, 220, 320, 280, 280);
-            ctx.restore();
         } else {
             ctx.fillStyle = '#1e88e5';
             ctx.beginPath(); ctx.arc(360, 460, 120, 0, Math.PI * 2); ctx.fill();
@@ -223,19 +218,16 @@
             ctx.beginPath(); ctx.arc(360, 380, 65, 0, Math.PI * 2); ctx.fill();
         }
 
-        // 4. Рендеринг интерфейса баланса
-        ctx.fillStyle = '#ffffff'; // Белый текст для контраста на темном
+        // Рендеринг интерфейса баланса
+        ctx.fillStyle = '#ffffff'; 
         ctx.font = 'bold 58px Arial'; ctx.textAlign = 'center';
-        // Добавим тень к балансу
-        ctx.shadowBlur = 15; ctx.shadowColor = '#00ffcc';
         ctx.fillText("Баланс: $" + money, 360, 140);
-        ctx.shadowBlur = 0; // Отключаем тень для остального текста
 
         ctx.font = 'bold 42px Arial'; ctx.textAlign = 'left';
         ctx.fillText('Магазин улучшений', 40, 675);
 
         // Кнопка Улучшения 1
-        ctx.fillStyle = (money >= streamCost) ? '#311b92' : '#1a0c41'; // Фиолетовые неоновые кнопки
+        ctx.fillStyle = (money >= streamCost) ? '#311b92' : '#1a0c41'; 
         ctx.fillRect(40, 700, 640, 110);
         ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(40, 700, 640, 110);
         ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial';
@@ -247,7 +239,7 @@
         // Кнопка Улучшения 2
         ctx.fillStyle = (money >= donateCost) ? '#311b92' : '#1a0c41'; ctx.textAlign = 'left';
         ctx.fillRect(40, 830, 640, 110);
-        ctx.strokeRect(40, 830, 640, 110);
+        ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(40, 830, 640, 110);
         ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial';
         ctx.fillText("Донат от подписчика (Лвл " + donateCount + ")", 70, 875);
         ctx.font = '18px Arial'; ctx.fillStyle = '#b388ff'; ctx.fillText("+50$ к силе клика", 70, 910);
@@ -258,7 +250,7 @@
         var maxDance = (danceCount >= 1);
         ctx.fillStyle = maxDance ? '#212121' : ((money >= danceCost) ? '#311b92' : '#1a0c41'); ctx.textAlign = 'left';
         ctx.fillRect(40, 960, 640, 110);
-        ctx.strokeRect(40, 960, 640, 110);
+        ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(40, 960, 640, 110);
         ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Arial';
         ctx.fillText(maxDance ? "Легендарный танец [MAX]" : "Легендарный танец", 70, 1005);
         ctx.font = '18px Arial'; ctx.fillStyle = '#b388ff'; ctx.fillText("Удваивает весь доход (x2)", 70, 1040);
@@ -267,3 +259,15 @@
             ctx.fillText(danceCost + "$", 650, 1023);
         }
 
+        // Кнопка Рекламы 4
+        ctx.fillStyle = '#00e676'; ctx.textAlign = 'left';
+        ctx.fillRect(40, 1090, 640, 110);
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(40, 1090, 640, 110);
+        ctx.fillStyle = '#000000'; ctx.font = 'bold 26px Arial';
+        ctx.fillText("Халявный Донат 🎥", 70, 1135);
+        ctx.font = '18px Arial'; ctx.fillStyle = '#212121'; ctx.fillText("Посмотри видео — получи куш сразу", 70, 1170);
+        ctx.fillStyle = '#1b5e20'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'right';
+        ctx.fillText("+5000$", 650, 1153);
+
+        // Отрисовка циферок клика
+        for (var i = popups.length - 1; i >= 0; i--) {
