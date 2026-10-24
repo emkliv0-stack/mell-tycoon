@@ -53,20 +53,16 @@
     var V_WIDTH = 720;
     var V_HEIGHT = 1280;
 
-    // Игровой баланс и сила клика
     var money = 0;
     var clickPower = 100;
     var multiplier = 1;
 
-    // Контроль рекламы
     var isAdPlaying = false;
     var adTimer = 0;
     var adInterval = null;
 
-    // Массив ключей улучшений
     var upgradeKeys = ['donate', 'stream', 'car', 'casino', 'watch', 'media'];
 
-    // Структура магазина со сниженными ценами
     var upgrades = {
         donate: { name: "Донат от фаната", cost: 200, count: 0, cpc: 10, type: "click", desc: "+10$ к клику" },
         stream: { name: "Стрим-Трансляция", cost: 500, count: 0, cps: 5, type: "passive", desc: "+5$/сек авто" },
@@ -76,17 +72,18 @@
         media: { name: "Своя медиасеть", cost: 35000, count: 0, cps: 300, type: "passive", desc: "+300$/сек авто" }
     };
 
+    var danceCount = 0;
+    var danceCost = 10000;
+
     var popups = [];
     var backgroundCash = [];
 
-    // Загрузка арта Мелстроя
     var mellstroyImg = new Image();
     mellstroyImg.src = 'mell.png';
     var isImgLoaded = false;
     mellstroyImg.onload = function() { isImgLoaded = true; };
     mellstroyImg.onerror = function() { isImgLoaded = false; };
 
-    // Создаем падающие на фоне купюры
     for (var i = 0; i < 20; i++) {
         backgroundCash.push({
             x: Math.random() * V_WIDTH,
@@ -96,7 +93,6 @@
         });
     }
 
-    // Инициализация связи с VK
     if (typeof vkBridge !== 'undefined') {
         vkBridge.send('VKWebAppInit').catch(function(e){});
     }
@@ -113,8 +109,8 @@
     resize();
 
     var shopYStart = 640;
-    var buttonHeight = 82;
-    var buttonGap = 13;
+    var buttonHeight = 76; 
+    var buttonGap = 10;
     var buttonWidth = 640;
     var buttonX = (V_WIDTH - buttonWidth) / 2;
 
@@ -126,15 +122,15 @@
         if (isAdPlaying) return;
 
         // Клик по Мелстрою
-        if (vX > 240 && vX < 480 && vY > 250 && vY < 490) {
+        if (vX > 240 && vX < 480 && vY > 230 && vY < 490) {
             var earned = clickPower * multiplier;
             money += earned;
             popups.push({ x: vX, y: vY, text: "+" + earned + "$", life: 1.0 });
             return;
         }
 
-        // Клик по кнопкам улучшений
         if (vX >= buttonX && vX <= buttonX + buttonWidth) {
+            // Кнопки магазина
             for (var i = 0; i < upgradeKeys.length; i++) {
                 var bY = shopYStart + i * (buttonHeight + buttonGap);
                 if (vY >= bY && vY <= bY + buttonHeight) {
@@ -143,8 +139,19 @@
                 }
             }
 
-            // Клик по кнопке рекламы
-            var advBtnY = shopYStart + 6 * (buttonHeight + buttonGap);
+            // Танец
+            var danceBtnY = shopYStart + 6 * (buttonHeight + buttonGap);
+            if (vY >= danceBtnY && vY <= danceBtnY + buttonHeight) {
+                if (money >= danceCost && danceCount < 1) {
+                    money -= danceCost;
+                    danceCount++;
+                    multiplier *= 2;
+                }
+                return;
+            }
+
+            // Кнопка рекламы
+            var advBtnY = shopYStart + 7 * (buttonHeight + buttonGap);
             if (vY >= advBtnY && vY <= advBtnY + buttonHeight) {
                 startAdProcess();
             }
@@ -189,16 +196,12 @@
         isAdPlaying = false;
     }
 
-    // Железобетонный расчет пассивного дохода без скрытых циклов объекта
     setInterval(function() {
         if (isAdPlaying) return;
-        
         var totalPassive = (upgrades.stream.count * upgrades.stream.cps) + 
                            (upgrades.casino.count * upgrades.casino.cps) + 
                            (upgrades.media.count * upgrades.media.cps);
-        
         totalPassive = totalPassive * multiplier;
-        
         if (totalPassive > 0) {
             money += totalPassive;
             popups.push({ x: 360, y: 240, text: "+" + totalPassive + "$/сек", life: 0.8 });
@@ -209,7 +212,6 @@
         ctx.fillStyle = '#1e0f33';
         ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
 
-        // Падающий фон
         ctx.fillStyle = 'rgba(76, 175, 80, 0.12)';
         for (var b = 0; b < backgroundCash.length; b++) {
             var cash = backgroundCash[b];
@@ -221,7 +223,6 @@
             ctx.fillRect(cash.x, cash.y, cash.size * 1.5, cash.size);
         }
 
-        // Персонаж Мелстрой
         if (isImgLoaded) {
             ctx.drawImage(mellstroyImg, 240, 250, 240, 240);
         } else {
@@ -229,15 +230,14 @@
             ctx.beginPath(); ctx.arc(360, 370, 100, 0, Math.PI * 2); ctx.fill();
         }
 
-        // Текст баланса
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center';
         ctx.fillText("Баланс: $" + money, 360, 120);
 
-        ctx.font = 'bold 36px Arial'; ctx.textAlign = 'left';
-        ctx.fillText('Магазин улучшений', 40, 605);
+        ctx.font = 'bold 32px Arial'; ctx.textAlign = 'left';
+        ctx.fillText('Магазин улучшений', 40, 615);
 
-        // Кнопки магазина улучшений
+        // Рисуем 6 улучшений
         for (var i = 0; i < upgradeKeys.length; i++) {
             var key = upgradeKeys[i];
             var upg = upgrades[key];
@@ -248,30 +248,31 @@
             ctx.fillRect(buttonX, bY, buttonWidth, buttonHeight);
             ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, bY, buttonWidth, buttonHeight);
 
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left';
-            ctx.fillText(upg.name + " (Лвл " + upg.count + ")", buttonX + 25, bY + 33);
-            ctx.font = '16px Arial'; ctx.fillStyle = '#b388ff';
-            ctx.fillText(upg.desc, buttonX + 25, bY + 63);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'left';
+            ctx.fillText(upg.name + " (Лвл " + upg.count + ")", buttonX + 25, bY + 30);
+            ctx.font = '15px Arial'; ctx.fillStyle = '#b388ff';
+            ctx.fillText(upg.desc, buttonX + 25, bY + 56);
 
-            ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'right';
-            ctx.fillText(upg.cost + "$", buttonX + buttonWidth - 25, bY + 48);
+            ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'right';
+            ctx.fillText(upg.cost + "$", buttonX + buttonWidth - 25, bY + 44);
         }
 
-        // Отрисовка нижней кнопки халявы/таймера
-        var advBtnY = shopYStart + 6 * (buttonHeight + buttonGap);
+        // Кнопка 7: Танец
+        var danceBtnY = shopYStart + 6 * (buttonHeight + buttonGap);
+        var canBuyDance = money >= danceCost && danceCount < 1 && !isAdPlaying;
+        ctx.fillStyle = (danceCount >= 1) ? '#212121' : (canBuyDance ? '#4a148c' : '#271447');
+        ctx.fillRect(buttonX, danceBtnY, buttonWidth, buttonHeight);
+        ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, danceBtnY, buttonWidth, buttonHeight);
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'left';
+        ctx.fillText((danceCount >= 1) ? "Легендарный танец [MAX]" : "Легендарный танец", buttonX + 25, danceBtnY + 30);
+        ctx.font = '15px Arial'; ctx.fillStyle = '#b388ff';
+        ctx.fillText("Удваивает весь доход (x2)", buttonX + 25, danceBtnY + 56);
+        if (danceCount < 1) {
+            ctx.fillStyle = '#00ffcc'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'right';
+            ctx.fillText(danceCost + "$", buttonX + buttonWidth - 25, danceBtnY + 44);
+        }
+
+        // Кнопка 8: Реклама
+        var advBtnY = shopYStart + 7 * (buttonHeight + buttonGap);
         if (isAdPlaying) {
             ctx.fillStyle = '#ff3d00';
-            ctx.fillRect(buttonX, advBtnY, buttonWidth, buttonHeight);
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, advBtnY, buttonWidth, buttonHeight);
-
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left';
-            ctx.fillText("Идет трансляция ролика... 📺", buttonX + 25, advBtnY + 33);
-            ctx.font = '16px Arial'; ctx.fillStyle = '#ffccbc';
-            ctx.fillText("Награда будет выдана автоматически", buttonX + 25, advBtnY + 63);
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'right';
-            ctx.fillText(adTimer + " сек", buttonX + buttonWidth - 25, advBtnY + 48);
-        } else {
-            ctx.fillStyle = '#00e676';
-            ctx.fillRect(buttonX, advBtnY, buttonWidth, buttonHeight);
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(buttonX, advBtnY, buttonWidth, buttonHeight);
-
