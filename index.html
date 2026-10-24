@@ -33,7 +33,6 @@
             max-height: 100%;
         }
     </style>
-    <script src="https://unpkg.com"></script>
 </head>
 <body>
 
@@ -42,7 +41,7 @@
 </div>
 
 <script>
-    // Если скрипт все равно упадет, это окно скажет точную причину
+    // Гарантированный датчик ошибок на случай непредвиденных сбоев
     window.onerror = function(msg, url, line) {
         alert("Датчик зафиксировал ошибку: " + msg + "\nСтрока: " + line);
         return false;
@@ -54,17 +53,17 @@
     var V_WIDTH = 720;
     var V_HEIGHT = 1280;
 
-    // Игровой баланс и сила клика
+    // Базовый баланс и экономика клика
     var money = 0;
     var clickPower = 100;
     var multiplier = 1;
 
-    // Контроль рекламы
+    // Состояние рекламы
     var isAdPlaying = false;
     var adTimer = 0;
     var adInterval = null;
 
-    // Все улучшения переведены в простейшие независимые переменные
+    // Переменные улучшений
     var lvlDonate = 0;   var costDonate = 200;
     var lvlStream = 0;   var costStream = 500;
     var lvlCar = 0;      var costCar = 1500;
@@ -76,14 +75,14 @@
     var popups = [];
     var backgroundCash = [];
 
-    // Загрузка арта Мелстроя из твоих файлов на GitHub
+    // Загрузка локальной картинки Мелстроя из твоей папки
     var mellstroyImg = new Image();
     mellstroyImg.src = 'mell.png';
     var isImgLoaded = false;
     mellstroyImg.onload = function() { isImgLoaded = true; };
     mellstroyImg.onerror = function() { isImgLoaded = false; };
 
-    // Создаем падающие на фоне купюры
+    // Создаем падающие на фоне купюры при старте
     for (var i = 0; i < 20; i++) {
         backgroundCash.push({
             x: Math.random() * V_WIDTH,
@@ -91,10 +90,6 @@
             speed: Math.random() * 2 + 1,
             size: Math.random() * 15 + 15
         });
-    }
-
-    if (typeof vkBridge !== 'undefined') {
-        vkBridge.send('VKWebAppInit').catch(function(e){});
     }
 
     function resize() {
@@ -108,6 +103,7 @@
     window.addEventListener('resize', resize);
     resize();
 
+    // Параметры сетки магазина
     var shopYStart = 640;
     var buttonHeight = 72; 
     var buttonGap = 9;
@@ -121,7 +117,7 @@
 
         if (isAdPlaying) return;
 
-        // Клик по Мелстрою (центральная зона)
+        // Зона клика по Мелстрою
         if (vX > 220 && vX < 500 && vY > 240 && vY < 500) {
             var earned = clickPower * multiplier;
             money += earned;
@@ -130,35 +126,35 @@
         }
 
         if (vX >= buttonX && vX <= buttonX + buttonWidth) {
-            // Кнопка 1: Донат от фаната
+            // Кнопка 1
             if (vY >= shopYStart && vY <= shopYStart + buttonHeight) {
                 if (money >= costDonate) { money -= costDonate; lvlDonate++; clickPower += 10; costDonate = Math.floor(costDonate * 1.4); }
             }
-            // Кнопка 2: Стрим
+            // Кнопка 2
             if (vY >= shopYStart + 1*(buttonHeight+buttonGap) && vY <= shopYStart + 1*(buttonHeight+buttonGap) + buttonHeight) {
                 if (money >= costStream) { money -= costStream; lvlStream++; costStream = Math.floor(costStream * 1.4); }
             }
-            // Кнопка 3: Тачка
+            // Кнопка 3
             if (vY >= shopYStart + 2*(buttonHeight+buttonGap) && vY <= shopYStart + 2*(buttonHeight+buttonGap) + buttonHeight) {
                 if (money >= costCar) { money -= costCar; lvlCar++; clickPower += 80; costCar = Math.floor(costCar * 1.4); }
             }
-            // Кнопка 4: Казино
+            // Кнопка 4
             if (vY >= shopYStart + 3*(buttonHeight+buttonGap) && vY <= shopYStart + 3*(buttonHeight+buttonGap) + buttonHeight) {
                 if (money >= costCasino) { money -= costCasino; lvlCasino++; costCasino = Math.floor(costCasino * 1.4); }
             }
-            // Кнопка 5: Часы
+            // Кнопка 5
             if (vY >= shopYStart + 4*(buttonHeight+buttonGap) && vY <= shopYStart + 4*(buttonHeight+buttonGap) + buttonHeight) {
                 if (money >= costWatch) { money -= costWatch; lvlWatch++; clickPower += 500; costWatch = Math.floor(costWatch * 1.4); }
             }
-            // Кнопка 6: Медиасеть
+            // Кнопка 6
             if (vY >= shopYStart + 5*(buttonHeight+buttonGap) && vY <= shopYStart + 5*(buttonHeight+buttonGap) + buttonHeight) {
                 if (money >= costMedia) { money -= costMedia; lvlMedia++; costMedia = Math.floor(costMedia * 1.4); }
             }
-            // Кнопка 7: Легендарный танец
+            // Кнопка 7: Танец Мелстроя
             if (vY >= shopYStart + 6*(buttonHeight+buttonGap) && vY <= shopYStart + 6*(buttonHeight+buttonGap) + buttonHeight) {
                 if (money >= danceCost && danceCount < 1) { money -= danceCost; danceCount++; multiplier *= 2; }
             }
-            // Кнопка 8: Реклама
+            // Кнопка 8: Запуск таймера рекламы
             if (vY >= shopYStart + 7*(buttonHeight+buttonGap) && vY <= shopYStart + 7*(buttonHeight+buttonGap) + buttonHeight) {
                 startAdProcess();
             }
@@ -171,10 +167,6 @@
         if (isAdPlaying) return;
         isAdPlaying = true;
         adTimer = 5;
-
-        if (typeof vkBridge !== 'undefined') {
-            vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' }).catch(function(e){});
-        }
 
         adInterval = setInterval(function() {
             adTimer--;
@@ -202,7 +194,7 @@
         }
     }, 1000);
 
-    // Функция ручной отрисовки каждой кнопки без циклов
+    // Функция отрисовки кнопок
     function drawBtn(y, name, desc, cost, count, color, hasMax) {
         ctx.fillStyle = color;
         ctx.fillRect(buttonX, y, buttonWidth, buttonHeight);
@@ -224,7 +216,7 @@
         ctx.fillStyle = '#1e0f33';
         ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
 
-        // Падающие баксы
+        // Денежный фон
         ctx.fillStyle = 'rgba(76, 175, 80, 0.12)';
         for (var b = 0; b < backgroundCash.length; b++) {
             var cash = backgroundCash[b];
@@ -233,7 +225,7 @@
             ctx.fillRect(cash.x, cash.y, cash.size * 1.5, cash.size);
         }
 
-        // Картинка Мелстроя
+        // Рендеринг персонажа
         if (isImgLoaded) {
             ctx.drawImage(mellstroyImg, 240, 240, 240, 240);
         } else {
@@ -241,14 +233,16 @@
             ctx.beginPath(); ctx.arc(360, 360, 100, 0, Math.PI * 2); ctx.fill();
         }
 
-        // Баланс
+        // Текст баланса
         ctx.fillStyle = '#ffffff'; ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center';
         ctx.fillText("Баланс: $" + money, 360, 120);
         ctx.font = 'bold 32px Arial'; ctx.textAlign = 'left';
         ctx.fillText('Магазин улучшений', 40, 610);
 
-        // Отрисовка всех 8 кнопок
+        // Прорисовка элементов магазина
         var step = buttonHeight + buttonGap;
         drawBtn(shopYStart, "Донат от фаната", "+10$ к клику", costDonate, lvlDonate, (money >= costDonate && !isAdPlaying) ? '#4a148c' : '#271447', false);
         drawBtn(shopYStart + step, "Стрим-Трансляция", "+5$/сек автоматически", costStream, lvlStream, (money >= costStream && !isAdPlaying) ? '#4a148c' : '#271447', false);
         drawBtn(shopYStart + step*2, "Розыгрыш тачки", "+80$ к клику", costCar, lvlCar, (money >= costCar && !isAdPlaying) ? '#4a148c' : '#271447', false);
+        drawBtn(shopYStart + step*3, "Реклама казино", "+40$/сек автоматически", costCasino, lvlCasino, (money >= costCasino && !isAdPlaying) ? '#4a148c' : '#271447', false);
+        drawBtn(shopYStart + step*4, "Золотые часы", "+500$ к клику", costWatch, lvlWatch, (money >= costWatch && !isAdPlaying) ? '#4a148c' : '#271447', false);
